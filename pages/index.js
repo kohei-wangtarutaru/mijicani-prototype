@@ -47,7 +47,7 @@ export default function Home() {
           type="text"
           value={storeName}
           onChange={(e) => setStoreName(e.target.value)}
-          placeholder="例：蕎麦屋 突（とつ）"
+          placeholder="例：マクドナルド"
           className="w-full p-3 border rounded-lg mb-4"
         />
         <button
