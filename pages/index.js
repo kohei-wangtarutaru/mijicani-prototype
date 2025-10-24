@@ -1,9 +1,8 @@
 import { useState } from "react";
 
 export default function Home() {
-  const [started, setStarted] = useState(false);
+  const [step, setStep] = useState("start");
   const [storeName, setStoreName] = useState("");
-  const [submittedName, setSubmittedName] = useState(false);
   const [image, setImage] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [resultUrl, setResultUrl] = useState("");
@@ -20,50 +19,40 @@ export default function Home() {
   const handleProcess = async () => {
     if (!image) return;
     setLoading(true);
-
     const formData = new FormData();
     formData.append("image", image);
-
     try {
-      const res = await fetch("/api/edit-image", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch("/api/edit-image", { method: "POST", body: formData });
       const data = await res.json();
-      if (data.url) {
-        setResultUrl(data.url);
-      } else {
-        alert("画像加工に失敗しました");
-      }
-    } catch (error) {
-      alert("通信エラー: " + error.message);
+      if (data.url) setResultUrl(data.url);
+      else alert("画像加工に失敗しました。");
+    } catch (err) {
+      alert("通信エラー: " + err.message);
     }
     setLoading(false);
   };
 
-  if (!started)
+  // --- 各ステップ ---
+  if (step === "start") {
     return (
       <Screen>
         <h1 className="text-2xl font-bold mb-4">SNS投稿をもっと手軽に。</h1>
-        <p className="mb-8 text-gray-600">
-          まずはお店の名前を教えてください。
-        </p>
+        <p className="mb-8 text-gray-600">まずはお店の名前を教えてください。</p>
         <button
-          onClick={() => setStarted(true)}
+          onClick={() => setStep("name")}
           className="px-6 py-3 bg-blue-500 text-white rounded-lg shadow"
         >
           はじめてみる
         </button>
       </Screen>
     );
+  }
 
-  if (!submittedName)
+  if (step === "name") {
     return (
       <Screen>
         <div className="max-w-sm w-full">
-          <h2 className="text-xl font-semibold mb-4">
-            お店の名前を教えてください。
-          </h2>
+          <h2 className="text-xl font-semibold mb-4">お店の名前を教えてください。</h2>
           <input
             type="text"
             value={storeName}
@@ -72,8 +61,10 @@ export default function Home() {
             className="w-full p-3 border rounded-lg mb-4"
           />
           <button
-            onClick={() => setSubmittedName(true)}
-            disabled={!storeName}
+            onClick={() => {
+              if (storeName.trim()) setStep("upload");
+            }}
+            disabled={!storeName.trim()}
             className="px-6 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50"
           >
             決定
@@ -81,56 +72,48 @@ export default function Home() {
         </div>
       </Screen>
     );
+  }
 
-  return (
-    <Screen>
-      <div className="max-w-sm w-full">
-        <h2 className="text-xl font-bold mb-4">
-          「{storeName}」の料理写真をアップしてください。
-        </h2>
-
-        {!image && (
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="mb-4"
-          />
-        )}
-
-        {previewUrl && !resultUrl && (
-          <>
-            <img
-              src={previewUrl}
-              alt="preview"
-              className="rounded-lg mb-4 shadow"
+  if (step === "upload") {
+    return (
+      <Screen>
+        <div className="max-w-sm w-full">
+          <h2 className="text-xl font-bold mb-4">
+            「{storeName}」の料理写真をアップしてください。
+          </h2>
+          {!image && (
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="mb-4"
             />
-            <button
-              onClick={handleProcess}
-              disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg"
-            >
-              {loading ? "AIが加工中…" : "AIで加工する"}
-            </button>
-          </>
-        )}
-
-        {resultUrl && (
-          <>
-            <h3 className="text-lg font-semibold mt-6 mb-2">加工後の画像</h3>
-            <img
-              src={resultUrl}
-              alt="result"
-              className="rounded-lg shadow mb-4"
-            />
-            <p className="text-gray-600">
-              背景をオシャレに整え、料理を自然に綺麗にしました。
-            </p>
-          </>
-        )}
-      </div>
-    </Screen>
-  );
+          )}
+          {previewUrl && !resultUrl && (
+            <>
+              <img src={previewUrl} alt="preview" className="rounded-lg mb-4 shadow" />
+              <button
+                onClick={handleProcess}
+                disabled={loading}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg"
+              >
+                {loading ? "AIが加工中…" : "AIで加工する"}
+              </button>
+            </>
+          )}
+          {resultUrl && (
+            <>
+              <h3 className="text-lg font-semibold mt-6 mb-2">加工後の画像</h3>
+              <img src={resultUrl} alt="result" className="rounded-lg shadow mb-4" />
+              <p className="text-gray-600">
+                背景をオシャレに整え、料理を自然に綺麗にしました。
+              </p>
+            </>
+          )}
+        </div>
+      </Screen>
+    );
+  }
 }
 
 function Screen({ children }) {
