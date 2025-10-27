@@ -30,7 +30,7 @@ export default async function handler(req, res) {
         model: "gpt-image-1",
         image: fs.createReadStream(imagePath),
         prompt:
-          "背景をオシャレにし、料理のメイン部分を自然にきれいに整える。新しい要素は追加しないでください。",
+          "背景をオシャレにして、料理メインの部分を自然に綺麗に整える。新しい要素は追加しないでください。",
         size: "1024x1024",
       });
 
