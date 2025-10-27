@@ -1,6 +1,7 @@
 import formidable from "formidable";
 import fs from "fs";
 import path from "path";
+import sharp from "sharp"; // 👈 追加：画像サイズを調整するため
 import OpenAI from "openai";
 
 export const config = {
@@ -33,12 +34,19 @@ export default async function handler(req, res) {
         throw new Error("Uploaded file not found");
       }
 
-      // 🧩 ファイルをバッファとして読み込み
-      const imageBuffer = fs.readFileSync(filePath);
+      // ✅ sharpで画像を圧縮＆正しい形式（PNG）に変換
+      const resizedPath = path.join(uploadDir, `resized-${Date.now()}.png`);
+      await sharp(filePath)
+        .resize(1024, 1024, { fit: "inside" })
+        .png()
+        .toFile(resizedPath);
+
+      // ✅ ストリーム形式でOpenAIへ送信
+      const stream = fs.createReadStream(resizedPath);
 
       const response = await openai.images.edit({
         model: "gpt-image-1",
-        image: imageBuffer,
+        image: stream,
         prompt:
           "背景をオシャレにして、料理メインの部分を自然に綺麗に整える。新しい要素は追加しないでください。",
         size: "1024x1024",
