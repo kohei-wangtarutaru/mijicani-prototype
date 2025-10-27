@@ -1,7 +1,8 @@
 import formidable from "formidable";
 import fs from "fs";
 import path from "path";
-import sharp from "sharp"; // 👈 追加：画像サイズを調整するため
+import sharp from "sharp";
+import mime from "mime-types"; // 👈 MIMEタイプ補正用
 import OpenAI from "openai";
 
 export const config = {
@@ -34,16 +35,21 @@ export default async function handler(req, res) {
         throw new Error("Uploaded file not found");
       }
 
-      // ✅ sharpで画像を圧縮＆正しい形式（PNG）に変換
+      // ✅ 画像ファイルのMIMEタイプ確認
+      const mimeType = mime.lookup(filePath);
+      console.log("Detected MIME type:", mimeType);
+
+      // ✅ SharpでPNGとして再エンコード（形式を保証）
       const resizedPath = path.join(uploadDir, `resized-${Date.now()}.png`);
       await sharp(filePath)
         .resize(1024, 1024, { fit: "inside" })
-        .png()
+        .png({ compressionLevel: 8 })
         .toFile(resizedPath);
 
-      // ✅ ストリーム形式でOpenAIへ送信
+      // ✅ 明示的に拡張子付きでストリーム化
       const stream = fs.createReadStream(resizedPath);
 
+      // ✅ OpenAIへ送信
       const response = await openai.images.edit({
         model: "gpt-image-1",
         image: stream,
