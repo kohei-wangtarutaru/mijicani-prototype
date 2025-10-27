@@ -2,8 +2,9 @@ import formidable from "formidable";
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
-import mime from "mime-types"; // 👈 MIMEタイプ補正用
+import mime from "mime-types";
 import OpenAI from "openai";
+import { File } from "formdata-node"; // ← MIME を明示できる File クラス
 
 export const config = {
   api: { bodyParser: false },
@@ -28,45 +29,44 @@ export default async function handler(req, res) {
     }
 
     try {
-      const file = Array.isArray(files.image) ? files.image[0] : files.image;
-      const filePath = file.filepath || file.path;
+      const fileAny = Array.isArray(files.image) ? files.image[0] : files.image;
+      const filePath = fileAny?.filepath || fileAny?.path;
 
-      if (!fs.existsSync(filePath)) {
+      if (!filePath || !fs.existsSync(filePath)) {
         throw new Error("Uploaded file not found");
       }
 
-      // ✅ 画像ファイルのMIMEタイプ確認
-      const mimeType = mime.lookup(filePath);
-      console.log("Detected MIME type:", mimeType);
+      // 入力画像の MIME（参考ログ）
+      const detected = mime.lookup(filePath) || "application/octet-stream";
+      console.log("Detected input MIME:", detected);
 
-      // ✅ SharpでPNGとして再エンコード（形式を保証）
-      const resizedPath = path.join(uploadDir, `resized-${Date.now()}.png`);
-      await sharp(filePath)
+      // ✅ 画像を 1024x1024 以内の PNG に再エンコード（サイズ＋形式を保証）
+      const pngBuffer = await sharp(filePath)
         .resize(1024, 1024, { fit: "inside" })
         .png({ compressionLevel: 8 })
-        .toFile(resizedPath);
+        .toBuffer();
 
-      // ✅ 明示的に拡張子付きでストリーム化
-      const stream = fs.createReadStream(resizedPath);
+      // ✅ MIME を明示した File オブジェクトを作成
+      const pngFile = new File([pngBuffer], "image.png", { type: "image/png" });
 
-      // ✅ OpenAIへ送信
+      // ✅ OpenAI Images Edit API 呼び出し（MIME= image/png を確実に付与）
       const response = await openai.images.edit({
         model: "gpt-image-1",
-        image: stream,
+        image: pngFile,
         prompt:
           "背景をオシャレにして、料理メインの部分を自然に綺麗に整える。新しい要素は追加しないでください。",
-        size: "1024x1024",
+        size: "1024x1024"
       });
 
       const editedUrl = response.data?.[0]?.url;
       if (!editedUrl) throw new Error("No URL returned from OpenAI");
 
-      res.status(200).json({ url: editedUrl });
+      return res.status(200).json({ url: editedUrl });
     } catch (error) {
       console.error("Image edit error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         error: "AI image edit failed",
-        message: error.message,
+        message: error.message
       });
     }
   });
